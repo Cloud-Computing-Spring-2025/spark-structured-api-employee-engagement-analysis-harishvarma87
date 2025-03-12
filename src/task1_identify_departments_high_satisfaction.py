@@ -1,7 +1,5 @@
-# task1_identify_departments_high_satisfaction.py
-
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count, when, round as spark_round
+from pyspark.sql.functions import col, count, when, round as spark_round, lit
 
 def initialize_spark(app_name="Task1_Identify_Departments"):
     """
@@ -30,22 +28,31 @@ def load_data(spark, file_path):
 
 def identify_departments_high_satisfaction(df):
     """
-    Identify departments with more than 50% of employees having a Satisfaction Rating > 4 and Engagement Level 'High'.
+    Identify departments where more than 50% of employees have SatisfactionRating > 4 and EngagementLevel = 'High'.
 
     Parameters:
         df (DataFrame): Spark DataFrame containing employee data.
 
     Returns:
-        DataFrame: DataFrame containing departments meeting the criteria with their respective percentages.
+        DataFrame: DataFrame with departments exceeding the 50% threshold and their respective percentages.
     """
-    # TODO: Implement Task 1
-    # Steps:
-    # 1. Filter employees with SatisfactionRating > 4 and EngagementLevel == 'High'.
-    # 2. Calculate the percentage of such employees within each department.
-    # 3. Identify departments where this percentage exceeds 50%.
-    # 4. Return the result DataFrame.
+    # Filter employees with SatisfactionRating > 4 and EngagementLevel = 'High'
+    filtered_df = df.filter((col("SatisfactionRating") > 4) & (col("EngagementLevel") == "High"))
 
-    pass  # Remove this line after implementing the function
+    # Count total employees per department
+    department_counts = df.groupBy("Department").agg(count("*").alias("TotalEmployees"))
+
+    # Count high-satisfaction employees per department
+    high_satisfaction_counts = filtered_df.groupBy("Department").agg(count("*").alias("HighSatEmployees"))
+
+    # Join both counts and calculate percentage
+    result_df = department_counts.join(high_satisfaction_counts, "Department", "left_outer") \
+        .fillna(0, subset=["HighSatEmployees"]) \
+        .withColumn("Percentage", spark_round((col("HighSatEmployees") / col("TotalEmployees")) * 100, 2)) \
+        .filter(col("Percentage") > 5) \
+        .select("Department", "Percentage")
+
+    return result_df
 
 def write_output(result_df, output_path):
     """
@@ -58,7 +65,10 @@ def write_output(result_df, output_path):
     Returns:
         None
     """
-    result_df.coalesce(1).write.csv(output_path, header=True, mode='overwrite')
+    if result_df.count() > 0:
+        result_df.coalesce(1).write.csv(output_path, header=True, mode='overwrite')
+    else:
+        print("No departments met the criteria of >50% high satisfaction and engagement.")
 
 def main():
     """
@@ -68,8 +78,8 @@ def main():
     spark = initialize_spark()
     
     # Define file paths
-    input_file = "/workspaces/Employee_Engagement_Analysis_Spark/input/employee_data.csv"
-    output_file = "/workspaces/Employee_Engagement_Analysis_Spark/outputs/task1/departments_high_satisfaction.csv"
+    input_file = "/workspaces/spark-structured-api-employee-engagement-analysis-harishvarma87/input/employee_data.csv"
+    output_file = "/workspaces/spark-structured-api-employee-engagement-analysis-harishvarma87/outputs/task1/departments_high_satisfaction.csv"
     
     # Load data
     df = load_data(spark, input_file)

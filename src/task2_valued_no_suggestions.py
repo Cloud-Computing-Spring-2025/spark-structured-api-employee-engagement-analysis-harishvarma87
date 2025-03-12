@@ -38,6 +38,16 @@ def identify_valued_no_suggestions(df):
     Returns:
         tuple: Number of such employees and their proportion.
     """
+    valued_no_suggestions_df = df.filter((col("SatisfactionRating") >= 4) & (col("ProvidedSuggestions") == False))
+    
+    # Count the number of such employees
+    num_valued_no_suggestions = valued_no_suggestions_df.count()
+    
+    # Calculate the proportion of these employees in the entire workforce
+    total_employees = df.count()
+    proportion = (num_valued_no_suggestions / total_employees) * 100
+    
+    return num_valued_no_suggestions, round(proportion, 2)
     # TODO: Implement Task 2
     # Steps:
     # 1. Identify employees with SatisfactionRating >= 4.
@@ -71,8 +81,8 @@ def main():
     spark = initialize_spark()
     
     # Define file paths
-    input_file = "/workspaces/Employee_Engagement_Analysis_Spark/input/employee_data.csv"
-    output_file = "/workspaces/Employee_Engagement_Analysis_Spark/outputs/task2/valued_no_suggestions.txt"
+    input_file = "/workspaces/spark-structured-api-employee-engagement-analysis-harishvarma87/input/employee_data.csv"
+    output_file = "/workspaces/spark-structured-api-employee-engagement-analysis-harishvarma87/outputs/task2/valued_no_suggestions.txt"
     
     # Load data
     df = load_data(spark, input_file)
